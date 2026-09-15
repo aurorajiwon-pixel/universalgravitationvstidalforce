@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>만유인력 vs 기조력 비교 시뮬레이터</title>
+    <style>
+        :root {
+            --moon-color: #2563eb;
+            --sun-color: #ea580c;
+            --primary-color: #0f172a;
+        }
+        * { box-sizing: border-box; font-family: 'Pretendard', system-ui, sans-serif; }
+        body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #0f172a; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        
+        h1 { text-align: center; font-size: 1.6rem; margin-top: 0; color: #0f172a; }
+        
+        /* 탭 스타일 */
+        .tab-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .tab-btn {
+            flex: 1; padding: 12px 18px; font-size: 1rem; font-weight: bold; border: none;
+            background: #f1f5f9; color: #64748b; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn:hover { background: #e2e8f0; }
+        .tab-btn.active { background: #0f172a; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* 안내 배너 */
+        .info-banner { background: #f8fafc; border-left: 5px solid #0284c7; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; color: #334155; margin-bottom: 20px; line-height: 1.5; }
+
+        /* 데이터 보관함 */
+        .data-bank-container { background: #f8fafc; border: 2px dashed #cbd5e1; padding: 16px; border-radius: 14px; margin-bottom: 25px; }
+        .bank-title { font-weight: bold; font-size: 0.85rem; color: #475569; margin-bottom: 10px; text-align: center; }
+        .data-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 48px; }
+        
+        .chip { 
+            background: white; border: 2px solid #cbd5e1; border-radius: 10px; padding: 8px 14px; 
+            font-weight: bold; font-size: 0.9rem; cursor: grab; user-select: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .chip:hover { border-color: #3b82f6; transform: translateY(-2px); }
+        .chip:active { cursor: grabbing; }
+        .chip.selected { border-color: #ef4444; background: #fef2f2; }
+        .chip[data-type="moon"] { color: var(--moon-color); border-color: #bfdbfe; }
+        .chip[data-type="sun"] { color: var(--sun-color); border-color: #fed7aa; }
+
+        /* 공식 Card Grid */
+        .formula-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .formula-card { background: #0f172a; color: white; padding: 20px; border-radius: 14px; }
+        .card-header { font-weight: bold; font-size: 1.05rem; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; }
+        
+        /* 분수식 */
+        .fraction-container { display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin: 18px 0; gap: 6px; }
+        .fraction { display: flex; flex-direction: column; align-items: center; }
+        .numerator { border-bottom: 2px solid white; padding-bottom: 6px; width: 100%; display: flex; justify-content: center; }
+        .denominator { padding-top: 6px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 4px; }
+
+        /* 드롭존 */
+        .drop-zone {
+            min-width: 150px; min-height: 44px; border: 2px dashed #64748b; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05);
+            font-size: 0.8rem; color: #94a3b8; transition: all 0.2s; padding: 4px 8px;
+        }
+        .drop-zone.drag-over { border-color: #facc15; background: rgba(250,204,21,0.15); }
+        .drop-zone.filled { border-style: solid; border-color: #22c55e; background: rgba(34,197,94,0.1); color: white; font-weight: bold; }
+
+        .step-box { background: #1e293b; padding: 12px; border-radius: 8px; font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-top: 15px; }
+        .highlight { color: #38bdf8; font-weight: bold; }
+
+        /* 결과 창 및 바 */
+        .result-panel { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 14px; padding: 20px; text-align: center; }
+        .result-badge { display: inline-block; color: white; font-size: 1.4rem; font-weight: bold; padding: 8px 22px; border-radius: 30px; margin: 10px 0; }
+        .result-badge.sun-win { background: #ea580c; }
+        .result-badge.moon-win { background: #2563eb; }
+
+        .bar-container { background: #e2e8f0; height: 24px; border-radius: 12px; overflow: hidden; display: flex; margin-top: 12px; }
+        .bar-moon { background: var(--moon-color); height: 100%; width: 0%; transition: width 0.5s ease; }
+        .bar-sun { background: var(--sun-color); height: 100%; width: 0%; transition: width 0.5s ease; }
+
+        .btn-reset { display: block; margin: 15px auto 0; background: #64748b; color: white; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-reset:hover { background: #475569; }
+
+        @media (max-width: 700px) {
+            .formula-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🪐 만유인력 vs 🌊 기조력 비교 체험관</h1>
+
+    <!-- 탭 네비게이션 -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('gravity')">🌌 1. 만유인력 (F ∝ M / r²)</button>
+        <button class="tab-btn" onclick="switchTab('tidal')">🌊 2. 기조력 (F ∝ M / r³)</button>
+    </div>
+
+    <!-- ================= 탭 1: 만유인력 ================= -->
+    <div id="tab-gravity" class="tab-content active">
+        <div class="info-banner">
+            📌 <b>만유인력 공식:</b> <i>F</i> ∝ <i>M</i> / <i>r</i><sup>2</sup> (질량에 비례, <b>거리의 제곱</b>에 반비례)<br>
+            데이터 카드를 공식 위치에 끌어다 놓고 태양과 달의 끌어당기는 힘을 비교해 보세요!
+        </div>
+
+        <div class="data-bank-container">
+            <div class="bank-title">📋 사용할 데이터 카드 (드래그 또는 클릭)</div>
+            <div class="data-bank">
+                <div class="chip" draggable="true" id="g-chip-moon-m" data-target="moon-m" data-type="moon">🌙 달 질량 (7.35 × 10²² kg)</div>
+                <div class="chip" draggable="true" id="g-chip-moon-r" data-target="moon-r" data-type="moon">📏 달-지구 거리 (3.84 × 10⁵ km)</div>
+                <div class="chip" draggable="true" id="g-chip-sun-m" data-target="sun-m" data-type="sun">☀️ 태양 질량 (1.99 × 10³⁰ kg)</div>
+                <div class="chip" draggable="true" id="g-chip-sun-r" data-target="sun-r" data-type="sun">📏 태양-지구 거리 (1.50 × 10⁸ km)</div>
+            </div>
+        </div>
+
+        <div class="formula-grid">
+            <div class="formula-card">
+                <div class="card-header" style="color: #60a5fa;">🌙 달의 만유인력 (F<sub>달</sub>)</div>
+                <div class="fraction-container">
+                    F<sub>달</sub> ∝ 
+                    <div class="fraction">
+                        <div class="numerator"><div class="drop-zone" id="g-zone-moon-m" data-accept="moon-m">질량 (M<sub>달</sub>)</div></div>
+                        <div class="denominator">(<div class="drop-zone" id="g-zone-moon-r" data-accept="moon-r">거리 (r<sub>달</sub>)</div>)²</div>
+                    </div>
+                </div>
+                <div class="step-box" id="g-step-moon">⏳ 데이터를 모두 넣으면 계산이 시작됩니다.</div>
+            </div>
+
+            <div class="formula-card">
+                <div class="card-header" style="color: #fb923c;">☀️ 태양의 만유인력 (F<sub>태양</sub>)</div>
+                <div class="fraction-container">
+                    F<sub>태양</sub> ∝ 
+                    <div class="fraction">
+                        <div class="numerator"><div class="drop-zone" id="g-zone-sun-m" data-accept="sun-m">질량 (M<sub>태양</sub>)</div></div>
+                        <div class="denominator">(<div class="drop-zone" id="g-zone-sun-r" data-accept="sun-r">거리 (r<sub>태양</sub>)</div>)²</div>
+                    </div>
+                </div>
+                <div class="step-box" id="g-step-sun">⏳ 데이터를 모두 넣으면 계산이 시작됩니다.</div>
+            </div>
+        </div>
+
+        <div class="result-panel">
+            <div style="font-weight: bold; color: #475569;">📊 만유인력 계산 결과</div>
+            <div id="g-result-text" style="margin-top: 8px; color: #64748b;">공식을 모두 완성해 주세요!</div>
+            <div class="bar-container" id="g-bar-box" style="display:none;">
+                <div class="bar-moon" id="g-bar-moon"></div>
+                <div class="bar-sun" id="g-bar-sun"></div>
+            </div>
+            <button class="btn-reset" onclick="resetTab('gravity')">🔄 만유인력 리셋</button>
+        </div>
+    </div>
+
+    <!-- ================= 탭 2: 기조력 ================= -->
+    <div id="tab-tidal" class="tab-content">
+        <div class="info-banner" style="border-left-color: #0284c7;">
+            🌊 <b>기조력 공식:</b> <i>F</i><sub>기조</sub> ∝ <i>M</i> / <i>r</i><sup>3</sup> (질량에 비례, <b>거리의 세제곱</b>에 반비례)<br>
+            거리의 세제곱이 적용되면 결과가 어떻게 반전되는지 확인해 보세요!
+        </div>
+
+        <div class="data-bank-container">
+            <div class="bank-title">📋 사용할 데이터 카드 (드래그 또는 클릭)</div>
+            <div class="data-bank">
+                <div class="chip" draggable="true" id="t-chip-moon-m" data-target="moon-m" data-type="moon">🌙 달 질량 (7.35 × 10²² kg)</div>
+                <div class="chip" draggable="true" id="t-chip-moon-r" data-target="moon-r" data-type="moon">📏 달-지구 거리 (3.84 × 10⁵ km)</div>
+                <div class="chip" draggable="true" id="t-chip-sun-m" data-target="sun-m" data-type="sun">☀️ 태양 질량 (1.99 × 10³⁰ kg)</div>
+                <div class="chip" draggable="true" id="t-chip-sun-r" data-target="sun-r" data-type="sun">📏 태양-지구 거리 (1.50 × 10⁸ km)</div>
+            </div>
+        </div>
+
+        <div class="formula-grid">
+            <div class="formula-card">
+                <div class="card-header" style="color: #60a5fa;">🌙 달의 기조력 (F<sub>기조_달</sub>)</div>
+                <div class="fraction-container">
+                    F<sub>기조_달</sub> ∝ 
+                    <div class="fraction">
+                        <div class="numerator"><div class="drop-zone" id="t-zone-moon-m" data-accept="moon-m">질량 (M<sub>달</sub>)</div></div>
+                        <div class="denominator">(<div class="drop-zone" id="t-zone-moon-r" data-accept="moon-r">거리 (r<sub>달</sub>)</div>)³</div>
+                    </div>
+                </div>
+                <div class="step-box" id="t-step-moon">⏳ 데이터를 모두 넣으면 계산이 시작됩니다.</div>
+            </div>
+
+            <div class="formula-card">
+                <div class="card-header" style="color: #fb923c;">☀️ 태양의 기조력 (F<sub>기조_태양</sub>)</div>
+                <div class="fraction-container">
+                    F<sub>기조_태양</sub> ∝ 
+                    <div class="fraction">
+                        <div class="numerator"><div class="drop-zone" id="t-zone-sun-m" data-accept="sun-m">질량 (M<sub>태양</sub>)</div></div>
+                        <div class="denominator">(<div class="drop-zone" id="t-zone-sun-r" data-accept="sun-r">거리 (r<sub>태양</sub>)</div>)³</div>
+                    </div>
+                </div>
+                <div class="step-box" id="t-step-sun">⏳ 데이터를 모두 넣으면 계산이 시작됩니다.</div>
+            </div>
+        </div>
+
+        <div class="result-panel">
+            <div style="font-weight: bold; color: #475569;">📊 기조력 계산 결과</div>
+            <div id="t-result-text" style="margin-top: 8px; color: #64748b;">공식을 모두 완성해 주세요!</div>
+            <div class="bar-container" id="t-bar-box" style="display:none;">
+                <div class="bar-moon" id="t-bar-moon"></div>
+                <div class="bar-sun" id="t-bar-sun"></div>
+            </div>
+            <button class="btn-reset" onclick="resetTab('tidal')">🔄 기조력 리셋</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 상수 데이터
+    const values = {
+        'moon-m': { base: 7.35, exp: 22, text: '7.35 × 10²²' },
+        'moon-r': { base: 3.84, exp: 5, text: '3.84 × 10⁵' },
+        'sun-m':  { base: 1.99, exp: 30, text: '1.99 × 10³⁰' },
+        'sun-r':  { base: 1.50, exp: 8, text: '1.50 × 10⁸' }
+    };
+
+    // 각 탭별 독립적 상태 관리
+    let state = {
+        gravity: { 'moon-m': false, 'moon-r': false, 'sun-m': false, 'sun-r': false },
+        tidal:   { 'moon-m': false, 'moon-r': false, 'sun-m': false, 'sun-r': false }
+    };
+
+    let selectedChip = null;
+
+    // 탭 전환
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        if (tabName === 'gravity') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab-gravity').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab-tidal').classList.add('active');
+        }
+        selectedChip = null;
+    }
+
+    // 드래그 & 클릭 이벤트 바인딩
+    function initEvents(tabPrefix, tabKey) {
+        const tabEl = document.getElementById(`tab-${tabKey}`);
+
+        tabEl.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', chip.dataset.target);
+            });
+
+            chip.addEventListener('click', () => {
+                tabEl.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+                selectedChip = chip.dataset.target;
+                chip.classList.add('selected');
+            });
+        });
+
+        tabEl.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                applyDrop(tabPrefix, tabKey, zone, e.dataTransfer.getData('text/plain'));
+            });
+
+            zone.addEventListener('click', () => {
+                if (selectedChip) {
+                    applyDrop(tabPrefix, tabKey, zone, selectedChip);
+                    tabEl.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+                    selectedChip = null;
+                }
+            });
+        });
+    }
+
+    function applyDrop(prefix, key, zone, targetId) {
+        const acceptId = zone.dataset.accept;
+        if (targetId === acceptId) {
+            state[key][acceptId] = true;
+            document.getElementById(`${prefix}-chip-${acceptId}`).style.display = 'none';
+
+            zone.innerHTML = values[acceptId].text;
+            zone.classList.add('filled');
+
+            if (key === 'gravity') calcGravity();
+            else calcTidal();
+        } else {
+            alert('올바른 데이터 카드가 아닙니다!');
+        }
+    }
+
+    // 만유인력 계산
+    function calcGravity() {
+        const st = state.gravity;
+        let fMoon, fSun;
+
+        if (st['moon-m'] && st['moon-r']) {
+            const mM = 7.35e22, rM = 3.84e5;
+            fMoon = mM / Math.pow(rM, 2);
+            document.getElementById('g-step-moon').innerHTML = `
+                1️⃣ 분모 제곱 (r²): <span class="highlight">1.47 × 10¹¹</span><br>
+                2️⃣ M / r² 상대값: <span class="highlight">4.98 × 10¹¹</span>
+            `;
+            window.gMoon = fMoon;
+        }
+
+        if (st['sun-m'] && st['sun-r']) {
+            const mS = 1.99e30, rS = 1.50e8;
+            fSun = mS / Math.pow(rS, 2);
+            document.getElementById('g-step-sun').innerHTML = `
+                1️⃣ 분모 제곱 (r²): <span class="highlight">2.25 × 10¹⁶</span><br>
+                2️⃣ M / r² 상대값: <span class="highlight">8.84 × 10¹³</span>
+            `;
+            window.gSun = fSun;
+        }
+
+        if (st['moon-m'] && st['moon-r'] && st['sun-m'] && st['sun-r']) {
+            const ratio = Math.round(window.gSun / window.gMoon);
+            document.getElementById('g-result-text').innerHTML = `
+                만유인력은 질량이 압도적으로 큰 <b>태양이 승리</b>합니다!<br>
+                <div class="result-badge sun-win">태양이 달보다 약 ${ratio.toLocaleString()} 배 큼!</div>
+            `;
+            
+            const total = window.gMoon + window.gSun;
+            document.getElementById('g-bar-box').style.display = 'flex';
+            document.getElementById('g-bar-moon').style.width = ((window.gMoon/total)*100).toFixed(1) + '%';
+            document.getElementById('g-bar-sun').style.width = ((window.gSun/total)*100).toFixed(1) + '%';
+        }
+    }
+
+    // 기조력 계산
+    function calcTidal() {
+        const st = state.tidal;
+        let fMoonT, fSunT;
+
+        if (st['moon-m'] && st['moon-r']) {
+            const mM = 7.35e22, rM = 3.84e5;
+            fMoonT = mM / Math.pow(rM, 3);
+            document.getElementById('t-step-moon').innerHTML = `
+                1️⃣ 분모 세제곱 (r³): <span class="highlight">5.66 × 10¹⁶</span><br>
+                2️⃣ M / r³ 상대값: <span class="highlight">1.30 × 10⁶</span>
+            `;
+            window.tMoon = fMoonT;
+        }
+
+        if (st['sun-m'] && st['sun-r']) {
+            const mS = 1.99e30, rS = 1.50e8;
+            fSunT = mS / Math.pow(rS, 3);
+            document.getElementById('t-step-sun').innerHTML = `
+                1️⃣ 분모 세제곱 (r³): <span class="highlight">3.38 × 10²⁴</span><br>
+                2️⃣ M / r³ 상대값: <span class="highlight">5.90 × 10⁵</span>
+            `;
+            window.tSun = fSunT;
+        }
+
+        if (st['moon-m'] && st['moon-r'] && st['sun-m'] && st['sun-r']) {
+            const ratio = (window.tMoon / window.tSun).toFixed(1);
+            document.getElementById('t-result-text').innerHTML = `
+                거리의 세제곱(<i>r</i><sup>3</sup>) 영향으로 역전이 일어납니다! <b>달의 승리!</b><br>
+                <div class="result-badge moon-win">달이 태양보다 약 ${ratio} 배 큼!</div>
+            `;
+
+            const total = window.tMoon + window.tSun;
+            document.getElementById('t-bar-box').style.display = 'flex';
+            document.getElementById('t-bar-moon').style.width = ((window.tMoon/total)*100).toFixed(1) + '%';
+            document.getElementById('t-bar-sun').style.width = ((window.tSun/total)*100).toFixed(1) + '%';
+        }
+    }
+
+    // 리셋 기능
+    function resetTab(key) {
+        state[key] = { 'moon-m': false, 'moon-r': false, 'sun-m': false, 'sun-r': false };
+        const prefix = key === 'gravity' ? 'g' : 't';
+        const tabEl = document.getElementById(`tab-${key}`);
+
+        tabEl.querySelectorAll('.chip').forEach(c => { c.style.display = 'flex'; c.classList.remove('selected'); });
+        tabEl.querySelectorAll('.drop-zone').forEach(z => {
+            z.classList.remove('filled');
+            z.innerHTML = z.dataset.accept.includes('m') ? '질량' : '거리';
+        });
+
+        document.getElementById(`${prefix}-step-moon`).innerHTML = '⏳ 데이터를 모두 넣으면 계산이 시작됩니다.';
+        document.getElementById(`${prefix}-step-sun`).innerHTML = '⏳ 데이터를 모두 넣으면 계산이 시작됩니다.';
+        document.getElementById(`${prefix}-result-text`).innerHTML = '공식을 모두 완성해 주세요!';
+        document.getElementById(`${prefix}-bar-box`).style.display = 'none';
+    }
+
+    // 초기화
+    initEvents('g', 'gravity');
+    initEvents('t', 'tidal');
+</script>
+
+</body>
+</html>
